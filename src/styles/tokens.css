@@ -1,0 +1,183 @@
+@import 'tailwindcss';
+
+:root {
+  --primary: #1D4ED8;
+  --primary-contrast: #FFFFFF;
+  --cta: #C2410C;
+  --cta-contrast: #FFFFFF;
+  --success: #15803D;
+  --success-bg: #DCFCE7;
+  --warning: #B45309;
+  --warning-bg: #FEF3C7;
+  --danger: #B91C1C;
+  --danger-bg: #FEE2E2;
+  --text: #241C13;
+  --text-muted: #6B5C48;
+  --bg: #FBF6EE;
+  --surface: #FFFDF8;
+  --column: #F2E9D8;
+  --border: #E4D7BE;
+  --focus-ring: #1D4ED8;
+  /* Acento decorativo (filetes, divisores editoriais) — nunca em botões, pra não competir com o CTA */
+  --rule: #A8552B;
+
+  --radius-card: 12px;
+  --radius-btn: 10px;
+  --radius-chip: 999px;
+  --shadow-soft: 0 1px 2px rgb(90 58 20 / .07), 0 6px 16px rgb(90 58 20 / .09);
+
+  --font-scale: 1;
+  --motion-duration: 200ms;
+}
+
+:root[data-theme='escuro'] {
+  --primary: #93C5FD;
+  --primary-contrast: #0F172A;
+  --cta: #FB923C;
+  --cta-contrast: #0F172A;
+  --success: #4ADE80;
+  --success-bg: #14532D;
+  --warning: #FBBF24;
+  --warning-bg: #451A03;
+  --danger: #FCA5A5;
+  --danger-bg: #450A0A;
+  --text: #F3ECDF;
+  --text-muted: #C9BBA4;
+  --bg: #1C1611;
+  --surface: #29211A;
+  --column: #241C15;
+  --border: #4A3B2C;
+  --focus-ring: #93C5FD;
+  --rule: #D2895A;
+}
+
+:root[data-theme='alto-contraste'] {
+  --primary: #FFD600;
+  --primary-contrast: #000000;
+  --cta: #FFD600;
+  --cta-contrast: #000000;
+  --success: #00FF66;
+  --success-bg: #000000;
+  --warning: #FFD600;
+  --warning-bg: #000000;
+  --danger: #FF5C5C;
+  --danger-bg: #000000;
+  --text: #FFFFFF;
+  --text-muted: #FFFFFF;
+  --bg: #000000;
+  --surface: #000000;
+  --column: #000000;
+  --border: #FFFFFF;
+  --focus-ring: #FFD600;
+}
+
+:root[data-theme='alto-contraste'] * {
+  border-color: var(--border) !important;
+}
+
+/* Sem sombra pra diferenciar região no alto contraste: reforça com borda visível */
+:root[data-theme='alto-contraste'] .bg-column {
+  border: 1px solid var(--border);
+}
+
+html {
+  font-size: calc(16px * var(--font-scale));
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+/* Foco visível em tudo — Segurança no uso / navegação por teclado */
+:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+[data-theme='alto-contraste'] :focus-visible {
+  outline: 3px solid #FFD600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  transition-duration: 0.001ms !important;
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-primary-contrast: var(--primary-contrast);
+  --color-cta: var(--cta);
+  --color-cta-contrast: var(--cta-contrast);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-column: var(--column);
+  --color-border: var(--border);
+
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Fraunces', ui-serif, Georgia, serif;
+
+  --radius-card: var(--radius-card);
+  --radius-btn: var(--radius-btn);
+  --radius-chip: var(--radius-chip);
+}
+
+/* Área de toque mínima de 44x44px em elementos interativos */
+button, a, input, select, textarea, [role='button'] {
+  min-height: 44px;
+}
+
+.tap-inline {
+  min-height: auto;
+}
+
+/* Utilitário de rolagem com snap para colunas no celular */
+.snap-x-mandatory {
+  scroll-snap-type: x mandatory;
+}
+.snap-start {
+  scroll-snap-align: start;
+}
+
+/* Filete editorial — divisor decorativo, nunca usado em botões (mantém o CTA exclusivo) */
+.rule-accent {
+  position: relative;
+}
+.rule-accent::before {
+  content: '';
+  display: block;
+  width: 2.5rem;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--rule);
+  margin-bottom: 0.625rem;
+}
+
+/* Esconder scrollbar mantendo funcionalidade */
+.scrollbar-thin::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
