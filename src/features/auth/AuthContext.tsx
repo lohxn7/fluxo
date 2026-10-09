@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { db } from '../../db/schema'
 import { generateSalt, hashPassword, verifyPassword, setSession, getSession, clearSession } from '../../db/auth'
+import { ensureDefaultColumns } from '../board/boardApi'
 import type { User } from '../../db/types'
 
 interface AuthContextValue {
@@ -61,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     await db.users.add(newUser)
     await db.settings.put({ id: 'app-settings', displayName: newUser.name, theme: 'claro', fontScale: 1, reduceMotion: false })
+    await ensureDefaultColumns()
     setUser(newUser)
     setSession(id, true)
     return { ok: true }

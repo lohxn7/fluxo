@@ -1,10 +1,13 @@
 import { test, expect } from '@playwright/test'
 
+// Não há mais conta demo fixa — cada execução de teste cria a sua própria conta local.
 async function login(page: import('@playwright/test').Page) {
-  await page.goto('/entrar')
-  await page.getByLabel('E-mail').fill('larissa@fluxo.app')
-  await page.locator('input[type="password"]').fill('fluxo123')
-  await page.getByRole('button', { name: 'Entrar' }).click()
+  await page.goto('/criar-conta')
+  const unique = Date.now()
+  await page.getByLabel('Nome').fill('Usuária de Teste')
+  await page.getByLabel('E-mail').fill(`teste-${unique}@fluxo.app`)
+  await page.getByLabel('Senha', { exact: true }).fill('senha123')
+  await page.getByRole('button', { name: 'Criar conta' }).click()
   await page.waitForURL('**/')
 }
 

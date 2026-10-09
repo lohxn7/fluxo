@@ -2,6 +2,23 @@ import { db } from '../../db/schema'
 
 const uid = () => crypto.randomUUID()
 
+const DEFAULT_COLUMNS = ['A fazer', 'Fazendo', 'Concluído']
+
+// Garante que o quadro tenha pelo menos as colunas padrão — isso é estrutura
+// da interface, não dado de exemplo, então não depende de nenhum seed fixo.
+export async function ensureDefaultColumns() {
+  const existing = await db.columns.count()
+  if (existing > 0) return
+  await db.columns.bulkAdd(
+    DEFAULT_COLUMNS.map((name, order) => ({
+      id: uid(),
+      name,
+      order,
+      wipLimit: name === 'Fazendo' ? 3 : null,
+    }))
+  )
+}
+
 export async function createColumn(name: string) {
   const count = await db.columns.count()
   await db.columns.add({ id: uid(), name: name.trim(), order: count, wipLimit: null })

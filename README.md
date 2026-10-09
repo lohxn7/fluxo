@@ -32,16 +32,15 @@ npm run build
 npm run preview
 ```
 
-## Conta demo
+## Como começar
 
-| Campo | Valor |
-|---|---|
-| E-mail | `larissa@fluxo.app` |
-| Senha | `fluxo123` |
+Não existe mais conta nem dados de exemplo pré-carregados. Na primeira vez que alguém abre o app:
 
-Na primeira execução, o app semeia automaticamente essa conta, colunas (A fazer, Fazendo, Concluído), 4 etiquetas e ~10 tarefas de exemplo com prazos relativos à data atual.
+1. Toque em **Criar conta** e cadastre nome, e-mail e senha.
+2. O quadro nasce com as 3 colunas padrão (A fazer, Fazendo, Concluído) — sem tarefas, sem etiquetas.
+3. Dali em diante é só usar: criar tarefas, etiquetas e anexos é tudo manual, do jeito que fica no seu dispositivo de verdade.
 
-⚠️ **Aviso de segurança:** a autenticação é local e feita só para fins do protótipo — a senha é armazenada como hash SHA-256 com salt (WebCrypto), nunca em texto puro, mas isso **não substitui** um sistema de autenticação real de produção.
+⚠️ **Aviso de segurança:** a autenticação é local e feita só para fins do protótipo — a senha é armazenada como hash SHA-256 com salt (WebCrypto), nunca em texto puro, mas isso **não substitui** um sistema de autenticação real de produção. A troca para autenticação de verdade está planejada na seção [Próximos passos: Supabase](#próximos-passos-supabase-opcional-ainda-desligado).
 
 ## Capturas de tela
 
@@ -69,7 +68,7 @@ As imagens são salvas em `docs/screenshots/`: telas 1 a 6 em viewport de celula
 src/
   components/   Botões, cartões, modal, toast, formulários — peças reutilizáveis
   features/     auth, home, board, task, files, settings
-  db/           Schema do Dexie, seed de dados de exemplo, autenticação local
+  db/           Schema do Dexie, autenticação local
   hooks/
   lib/          Utilitários de data
   styles/       tokens.css — cores, tipografia, espaçamento

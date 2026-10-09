@@ -12,7 +12,7 @@ export function LoginPage() {
   const navigate = useNavigate()
   const { login } = useAuth()
 
-  const [email, setEmail] = useState('larissa@fluxo.app')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [remember, setRemember] = useState(true)
@@ -91,10 +91,6 @@ export function LoginPage() {
           <Link to="/criar-conta" className="font-semibold text-primary hover:underline">
             Criar conta
           </Link>
-        </p>
-
-        <p className="mt-4 rounded-btn bg-column px-3.5 py-2.5 text-center text-sm text-text-muted">
-          Conta demo: <strong className="text-text">larissa@fluxo.app</strong> · senha <strong className="text-text">fluxo123</strong>
         </p>
       </div>
     </div>
