@@ -1,6 +1,6 @@
 # Fluxo
 
-Organizador de tarefas em quadro Kanban, com anexos de arquivos, feito para a Larissa: estagiária de TI, estudante à noite, sempre com o celular numa mão só. Protótipo funcional desenvolvido para a disciplina de Interação Humano-Computador (IHC).
+Organizador de tarefas em quadro Kanban, com anexos de arquivos, feito para o Abraão: estagiário de TI, estudante à noite, sempre com o celular numa mão só. Protótipo funcional desenvolvido para a disciplina de Interação Humano-Computador (IHC).
 
 > Todos os dados ficam **só no seu dispositivo** (IndexedDB, via Dexie). Não existe backend nem chamadas externas.
 

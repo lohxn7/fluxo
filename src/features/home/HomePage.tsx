@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { AlarmClock, CalendarClock, CheckCircle2, Plus } from 'lucide-react'
@@ -11,7 +11,6 @@ import { Tag } from '../../components/Tag'
 import { greetingForHour, formatFullDate, toIsoDate, daysBetween } from '../../lib/date'
 import { usePageTitle } from '../../hooks/usePageTitle'
 import { useAuth } from '../auth/AuthContext'
-import { useState } from 'react'
 import { NewTaskModal } from '../task/NewTaskModal'
 
 export function HomePage() {
@@ -22,11 +21,16 @@ export function HomePage() {
 
   const tasks = useLiveQuery(() => db.tasks.toArray(), [])
   const columns = useLiveQuery(() => db.columns.orderBy('order').toArray(), [])
+  const settings = useLiveQuery(() => db.settings.get('app-settings'), [])
 
-  const now = new Date()
+  // TODO: por enquanto fixo em 14 de setembro (pedido temporário); trocar de volta
+  // para `new Date()` quando não precisar mais de uma data fixa pra testar/mostrar.
+  const now = new Date(2026, 8, 14)
   const today = toIsoDate(now)
   const greeting = greetingForHour(now.getHours())
-  const firstName = (user?.name ?? 'Larissa').split(' ')[0]
+  // "Nome exibido" (Ajustes → Conta) é a fonte certa pro saudação — é o campo
+  // que a pessoa de fato edita; user.name é só o nome com que ela se cadastrou.
+  const firstName = (settings?.displayName || user?.name || 'Abraão').split(' ')[0]
 
   const stats = useMemo(() => {
     if (!tasks) return { dueToday: 0, overdue: 0, completedWeek: 0 }

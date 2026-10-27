@@ -8,7 +8,7 @@ const SHOTS_DIR = path.join(process.cwd(), 'docs', 'screenshots')
 async function signup(page: Page) {
   await page.goto('/criar-conta')
   const unique = Date.now()
-  await page.getByLabel('Nome').fill('Larissa Menezes')
+  await page.getByLabel('Nome').fill('Abraão Menezes')
   await page.getByLabel('E-mail').fill(`larissa-${unique}@fluxo.app`)
   await page.getByLabel('Senha', { exact: true }).fill('fluxo123')
   await page.getByRole('button', { name: 'Criar conta' }).click()
