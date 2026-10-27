@@ -1,5 +1,5 @@
 import { db } from '../../db/schema'
-import type { Priority, Task } from '../../db/types'
+import type { ChecklistItem, Priority, Task } from '../../db/types'
 
 const uid = () => crypto.randomUUID()
 
@@ -16,6 +16,7 @@ export interface NewTaskInput {
 export async function createTask(input: NewTaskInput): Promise<string> {
   const id = uid()
   const count = await db.tasks.where('columnId').equals(input.columnId).count()
+  const { doneId } = await columnOrder()
   const now = new Date().toISOString()
   await db.tasks.add({
     id,
@@ -29,7 +30,7 @@ export async function createTask(input: NewTaskInput): Promise<string> {
     order: count,
     createdAt: now,
     updatedAt: now,
-    completedAt: null,
+    completedAt: input.columnId === doneId ? now : null,
   })
   return id
 }
@@ -50,10 +51,18 @@ export async function restoreTask(task: Task) {
   await db.tasks.put(task)
 }
 
+// A última coluna do quadro é a de "Concluído": estar nela e estar concluída são a mesma
+// coisa. Antes eram dois conceitos separados (botão "Concluir" × coluna), que se contradiziam.
+async function columnOrder() {
+  const columns = await db.columns.orderBy('order').toArray()
+  return { firstId: columns[0]?.id, doneId: columns[columns.length - 1]?.id }
+}
+
 export async function moveTask(taskId: string, targetColumnId: string, targetOrder: number) {
-  await db.transaction('rw', db.tasks, async () => {
+  await db.transaction('rw', db.tasks, db.columns, async () => {
     const task = await db.tasks.get(taskId)
     if (!task) return
+    const { doneId } = await columnOrder()
 
     const sourceColumnId = task.columnId
     const siblingsTarget = await db.tasks.where('columnId').equals(targetColumnId).sortBy('order')
@@ -63,10 +72,12 @@ export async function moveTask(taskId: string, targetColumnId: string, targetOrd
     await Promise.all(filteredTarget.map((t, i) => db.tasks.update(t.id, { order: i })))
 
     if (sourceColumnId !== targetColumnId) {
+      const now = new Date().toISOString()
       await db.tasks.update(taskId, {
         columnId: targetColumnId,
         order: targetOrder,
-        updatedAt: new Date().toISOString(),
+        updatedAt: now,
+        completedAt: targetColumnId === doneId ? (task.completedAt ?? now) : null,
       })
       const siblingsSource = await db.tasks.where('columnId').equals(sourceColumnId).sortBy('order')
       await Promise.all(siblingsSource.map((t, i) => db.tasks.update(t.id, { order: i })))
@@ -74,8 +85,19 @@ export async function moveTask(taskId: string, targetColumnId: string, targetOrd
   })
 }
 
+// Concluir leva a tarefa para o fim da coluna de concluídas; reabrir devolve para a primeira.
 export async function setTaskCompletion(taskId: string, completed: boolean) {
-  await db.tasks.update(taskId, { completedAt: completed ? new Date().toISOString() : null, updatedAt: new Date().toISOString() })
+  const { firstId, doneId } = await columnOrder()
+  const targetId = completed ? doneId : firstId
+  const task = await db.tasks.get(taskId)
+  if (!task || !targetId) return
+  if (task.columnId === targetId) {
+    // Já está na coluna certa (ex.: dado antigo): só acerta a marcação.
+    await updateTask(taskId, { completedAt: completed ? new Date().toISOString() : null })
+    return
+  }
+  const count = await db.tasks.where('columnId').equals(targetId).count()
+  await moveTask(taskId, targetId, count)
 }
 
 // Checklist
@@ -90,6 +112,10 @@ export async function toggleChecklistItem(id: string, done: boolean) {
 
 export async function deleteChecklistItem(id: string) {
   await db.checklistItems.delete(id)
+}
+
+export async function restoreChecklistItem(item: ChecklistItem) {
+  await db.checklistItems.put(item)
 }
 
 export async function updateChecklistItemText(id: string, text: string) {

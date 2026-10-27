@@ -1,6 +1,6 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { Plus, AlertTriangle } from 'lucide-react'
+import { Plus, AlertTriangle, SearchX } from 'lucide-react'
 import type { Column, Task } from '../../db/types'
 import { TaskCard } from './TaskCard'
 import { EmptyState } from '../../components/EmptyState'
@@ -13,10 +13,12 @@ interface BoardColumnProps {
   onEditTask: (task: Task) => void
   onDeleteTask: (task: Task) => void
   onMoveTask: (task: Task) => void
+  onToggleComplete: (task: Task) => void
+  filtering: boolean
 }
 
 // Gestalt — Região comum: fundo próprio (--column) separa visualmente cada coluna
-export function BoardColumn({ column, tasks, onAddTask, onEditTask, onDeleteTask, onMoveTask }: BoardColumnProps) {
+export function BoardColumn({ column, tasks, onAddTask, onEditTask, onDeleteTask, onMoveTask, onToggleComplete, filtering }: BoardColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id })
   const overLimit = column.wipLimit != null && tasks.length > column.wipLimit
 
@@ -38,7 +40,10 @@ export function BoardColumn({ column, tasks, onAddTask, onEditTask, onDeleteTask
       {overLimit && (
         <div className="mb-2 flex items-start gap-2 rounded-btn bg-warning-bg px-3 py-2 text-sm font-medium text-warning">
           <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-          <span>Você já tem {tasks.length} coisas em andamento. Que tal terminar uma antes de começar outra?</span>
+          <span>
+            {column.name} passou do limite: {tasks.length} tarefas para um máximo de {column.wipLimit}. Que tal tirar alguma daqui antes de
+            colocar outra?
+          </span>
         </div>
       )}
 
@@ -52,15 +57,23 @@ export function BoardColumn({ column, tasks, onAddTask, onEditTask, onDeleteTask
                 onEdit={() => onEditTask(task)}
                 onDelete={() => onDeleteTask(task)}
                 onMove={() => onMoveTask(task)}
+                onToggleComplete={() => onToggleComplete(task)}
               />
             ))}
-            {tasks.length === 0 && (
-              <EmptyState
-                icon={<KanbanSquare size={28} aria-hidden="true" />}
-                title="Nada por aqui"
-                description="Arraste uma tarefa ou adicione uma nova."
-              />
-            )}
+            {tasks.length === 0 &&
+              (filtering ? (
+                <EmptyState
+                  icon={<SearchX size={28} aria-hidden="true" />}
+                  title="Nenhum resultado"
+                  description="Nenhuma tarefa desta coluna combina com a busca ou o filtro."
+                />
+              ) : (
+                <EmptyState
+                  icon={<KanbanSquare size={28} aria-hidden="true" />}
+                  title="Nada por aqui"
+                  description="Arraste uma tarefa ou adicione uma nova."
+                />
+              ))}
           </div>
         </SortableContext>
       </div>

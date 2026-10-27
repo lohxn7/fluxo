@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/schema'
 import { Modal } from '../../components/Modal'
 import { Input } from '../../components/Input'
 import { Select } from '../../components/Select'
 import { Button } from '../../components/Button'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { createTask } from './taskApi'
 import type { Priority } from '../../db/types'
 
@@ -24,8 +25,18 @@ export function NewTaskModal({ defaultColumnId, onClose, onCreated }: NewTaskMod
   const [priority, setPriority] = useState<Priority>('media')
   const [dueDate, setDueDate] = useState('')
   const [error, setError] = useState('')
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
 
-  async function handleSubmit() {
+  const dirty = title.trim() !== '' || labelId !== '' || priority !== 'media' || dueDate !== '' || columnId !== defaultColumnId
+
+  // Controle e liberdade: cancelar com coisa preenchida pede confirmação em vez de descartar calado
+  function requestClose() {
+    if (dirty) setConfirmDiscard(true)
+    else onClose()
+  }
+
+  async function handleSubmit(e?: FormEvent) {
+    e?.preventDefault()
     if (!title.trim()) {
       setError('Dá um nome pra essa tarefa antes de continuar.')
       return
@@ -43,20 +54,21 @@ export function NewTaskModal({ defaultColumnId, onClose, onCreated }: NewTaskMod
   return (
     <Modal
       title="Nova tarefa"
-      onClose={onClose}
+      onClose={requestClose}
       fullScreenOnMobile={false}
       footer={
         <div className="flex justify-end gap-3">
-          <Button variant="secondary" onClick={onClose}>
+          <Button type="button" variant="secondary" onClick={requestClose}>
             Cancelar
           </Button>
-          <Button variant="cta" onClick={handleSubmit}>
+          {/* Fica no rodapé, fora do <form>; o atributo form liga o botão a ele (Enter também envia) */}
+          <Button type="submit" form="new-task-form" variant="cta">
             Criar tarefa
           </Button>
         </div>
       }
     >
-      <div className="flex flex-col gap-4">
+      <form id="new-task-form" onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         <Input
           label="Título"
           value={title}
@@ -91,7 +103,18 @@ export function NewTaskModal({ defaultColumnId, onClose, onCreated }: NewTaskMod
           value={dueDate}
           onChange={(e) => setDueDate(e.target.value)}
         />
-      </div>
+      </form>
+
+      {confirmDiscard && (
+        <ConfirmDialog
+          title="Descartar tarefa?"
+          message="O que você preencheu nesta nova tarefa vai ser perdido."
+          confirmLabel="Descartar"
+          danger
+          onConfirm={onClose}
+          onCancel={() => setConfirmDiscard(false)}
+        />
+      )}
     </Modal>
   )
 }

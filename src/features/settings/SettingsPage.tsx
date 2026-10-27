@@ -14,6 +14,8 @@ import { usePageTitle } from '../../hooks/usePageTitle'
 import { formatFileSize } from '../files/attachmentApi'
 import type { ThemeMode } from '../../db/types'
 import { useState } from 'react'
+import { useToast } from '../../components/ToastProvider'
+import { LoadingState } from '../../components/LoadingState'
 
 const THEME_OPTIONS: { value: ThemeMode; label: string; icon: typeof Sun; swatch: string }[] = [
   { value: 'claro', label: 'Claro', icon: Sun, swatch: 'linear-gradient(135deg, #F8FAFC, #1D4ED8)' },
@@ -26,15 +28,18 @@ export function SettingsPage() {
   usePageTitle('Ajustes')
   const { user, logout } = useAuth()
   const settings = useLiveQuery(() => db.settings.get('app-settings'), [])
-  const [displayName, setDisplayName] = useState('')
+  const { showToast } = useToast()
+  // null = sem edição em andamento (mostra o valor salvo); string = o que está sendo digitado
+  const [displayName, setDisplayName] = useState<string | null>(null)
 
   const taskCount = useLiveQuery(() => db.tasks.count(), [])
   const attachments = useLiveQuery(() => db.attachments.toArray(), [])
   const attachmentBytes = attachments?.reduce((sum, a) => sum + a.size, 0) ?? 0
 
-  if (!settings) return null
+  if (!settings) return <LoadingState />
 
-  const name = user?.name ?? settings.displayName
+  // Mesma fonte da saudação da Início: o "Nome exibido" que a pessoa edita aqui embaixo
+  const name = settings.displayName || user?.name || ''
   const initials = name
     .split(' ')
     .slice(0, 2)
@@ -145,9 +150,16 @@ export function SettingsPage() {
         <div className="flex flex-col gap-3">
           <Input
             label="Nome exibido"
-            value={displayName || settings.displayName}
+            hint="Aparece na saudação da Início e aqui no topo."
+            value={displayName ?? settings.displayName}
             onChange={(e) => setDisplayName(e.target.value)}
-            onBlur={() => displayName.trim() && updateSettings({ displayName: displayName.trim() })}
+            onBlur={async () => {
+              const next = displayName?.trim()
+              setDisplayName(null)
+              if (!next || next === settings.displayName) return
+              await updateSettings({ displayName: next })
+              showToast('Nome exibido atualizado')
+            }}
           />
           <p className="text-sm text-text-muted">{user?.email}</p>
           <Button variant="secondary" icon={<LogOut size={16} aria-hidden="true" />} onClick={logout}>

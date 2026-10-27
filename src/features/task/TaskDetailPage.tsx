@@ -10,7 +10,8 @@ import { Button } from '../../components/Button'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { ChecklistSection } from './ChecklistSection'
 import { AttachmentsSection } from '../files/AttachmentsSection'
-import { deleteTask, restoreTask, setTaskCompletion, updateTask } from './taskApi'
+import { deleteTask, moveTask, restoreTask, setTaskCompletion, updateTask } from './taskApi'
+import { LoadingState } from '../../components/LoadingState'
 import { useToast } from '../../components/ToastProvider'
 import { usePageTitle } from '../../hooks/usePageTitle'
 import type { Priority } from '../../db/types'
@@ -35,6 +36,7 @@ export function TaskDetailPage() {
   const [dueTime, setDueTime] = useState('')
   const [saved, setSaved] = useState(true)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [titleError, setTitleError] = useState('')
 
   const loadedId = useRef<string | null>(null)
   const saveTimer = useRef<number | null>(null)
@@ -70,7 +72,7 @@ export function TaskDetailPage() {
     await deleteTask(task.id)
     setConfirmDelete(false)
     close()
-    showToast('Tarefa excluída · Desfazer', {
+    showToast('Tarefa excluída', {
       actionLabel: 'Desfazer',
       onAction: () => restoreTask(task),
     })
@@ -80,10 +82,12 @@ export function TaskDetailPage() {
     if (!task) return
     const willComplete = !task.completedAt
     await setTaskCompletion(task.id, willComplete)
-    if (willComplete) showToast('Mandou bem! Tarefa concluída 🎉')
+    const latest = await db.tasks.get(task.id)
+    if (latest) setColumnId(latest.columnId)
+    showToast(willComplete ? 'Mandou bem! Tarefa concluída 🎉' : 'Tarefa reaberta')
   }
 
-  if (!task) return null
+  if (!task) return <LoadingState />
 
   return (
     <Modal title="Detalhes da tarefa" onClose={close}>
@@ -97,7 +101,7 @@ export function TaskDetailPage() {
           >
             {saved ? (
               <>
-                <Check size={16} aria-hidden="true" /> Salvo ✓
+                <Check size={16} aria-hidden="true" /> Salvo
               </>
             ) : (
               'Salvando…'
@@ -115,9 +119,22 @@ export function TaskDetailPage() {
         <Input
           label="Título"
           value={title}
+          error={titleError}
           onChange={(e) => {
             setTitle(e.target.value)
-            scheduleSave({ title: e.target.value })
+            // Prevenção de erros: título vazio nunca vai para o banco
+            if (!e.target.value.trim()) {
+              setTitleError('A tarefa precisa de um título. Se sair do campo, o anterior volta.')
+              return
+            }
+            setTitleError('')
+            scheduleSave({ title: e.target.value.trim() })
+          }}
+          onBlur={() => {
+            if (!title.trim()) {
+              setTitle(task.title)
+              setTitleError('')
+            }
           }}
         />
 
@@ -141,9 +158,12 @@ export function TaskDetailPage() {
           <Select
             label="Coluna atual"
             value={columnId}
-            onChange={(e) => {
-              setColumnId(e.target.value)
-              scheduleSave({ columnId: e.target.value })
+            onChange={async (e) => {
+              const target = e.target.value
+              setColumnId(target)
+              // Vai pelo mesmo caminho do quadro, para a marcação de concluída acompanhar a coluna
+              const count = await db.tasks.where('columnId').equals(target).count()
+              await moveTask(task.id, target, count)
             }}
           >
             {columns?.map((c) => (

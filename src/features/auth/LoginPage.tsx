@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Eye, EyeOff } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import { LogoMark, Wordmark } from '../../components/Logo'
 import { Input } from '../../components/Input'
+import { PasswordInput } from '../../components/PasswordInput'
 import { Button } from '../../components/Button'
 import { usePageTitle } from '../../hooks/usePageTitle'
 
@@ -14,19 +15,24 @@ export function LoginPage() {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
   const [remember, setRemember] = useState(true)
-  const [error, setError] = useState('')
+  const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({})
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    setError('')
+    // Diagnóstico certo: campo vazio diz "preencha", e não "e-mail ou senha não conferem"
+    const nextErrors: typeof errors = {}
+    if (!email.trim()) nextErrors.email = 'Digite seu e-mail.'
+    if (!password) nextErrors.password = 'Digite sua senha.'
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length) return
+
     setLoading(true)
     const result = await login(email, password, remember)
     setLoading(false)
     if (!result.ok) {
-      setError(result.error ?? 'Não foi possível entrar.')
+      setErrors({ general: result.error ?? 'Não foi possível entrar.' })
       return
     }
     navigate('/')
@@ -48,27 +54,16 @@ export function LoginPage() {
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            error={errors.email}
             required
           />
-          <Input
+          <PasswordInput
             label="Senha"
-            type={showPassword ? 'text' : 'password'}
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            error={error}
+            error={errors.password}
             required
-            trailing={
-              <button
-                type="button"
-                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                onClick={() => setShowPassword((v) => !v)}
-                className="tap-inline flex h-9 w-9 items-center justify-center rounded-btn text-text-muted hover:bg-column"
-              >
-                {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
-              </button>
-            }
           />
 
           <label className="flex min-h-11 items-center gap-2 text-sm text-text">
@@ -80,6 +75,14 @@ export function LoginPage() {
             />
             Lembrar de mim
           </label>
+
+          {/* Erro de credencial vale para o formulário todo, não só para a senha */}
+          {errors.general && (
+            <p role="alert" className="flex items-start gap-1.5 rounded-btn bg-danger-bg px-3 py-2.5 text-sm font-medium text-danger">
+              <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+              {errors.general}
+            </p>
+          )}
 
           <Button type="submit" variant="primary" fullWidth disabled={loading}>
             {loading ? 'Entrando…' : 'Entrar'}

@@ -3,7 +3,8 @@ import type { Priority } from '../db/types'
 
 const CONFIG: Record<Priority, { label: string; icon: typeof SignalHigh; className: string }> = {
   alta: { label: 'Alta', icon: SignalHigh, className: 'text-danger bg-danger-bg' },
-  media: { label: 'Média', icon: SignalMedium, className: 'text-warning bg-warning-bg' },
+  // Média fica neutra: o amarelo é reservado para "vence em breve" (Consistência)
+  media: { label: 'Média', icon: SignalMedium, className: 'text-text bg-column' },
   baixa: { label: 'Baixa', icon: SignalLow, className: 'text-text-muted bg-column' },
 }
 

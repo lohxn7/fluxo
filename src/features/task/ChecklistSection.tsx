@@ -2,12 +2,20 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus, Trash2 } from 'lucide-react'
 import { db } from '../../db/schema'
-import { addChecklistItem, toggleChecklistItem, deleteChecklistItem } from './taskApi'
+import { addChecklistItem, toggleChecklistItem, deleteChecklistItem, restoreChecklistItem } from './taskApi'
+import { useToast } from '../../components/ToastProvider'
+import type { ChecklistItem } from '../../db/types'
 import { ProgressBar } from '../../components/ProgressBar'
 
 export function ChecklistSection({ taskId }: { taskId: string }) {
   const items = useLiveQuery(() => db.checklistItems.where('taskId').equals(taskId).sortBy('order'), [taskId])
   const [newText, setNewText] = useState('')
+  const { showToast } = useToast()
+
+  async function handleRemove(item: ChecklistItem) {
+    await deleteChecklistItem(item.id)
+    showToast(`Item removido: ${item.text}`, { actionLabel: 'Desfazer', onAction: () => restoreChecklistItem(item) })
+  }
 
   async function handleAdd() {
     if (!newText.trim()) return
@@ -41,7 +49,7 @@ export function ChecklistSection({ taskId }: { taskId: string }) {
             <button
               aria-label={`Remover item: ${item.text}`}
               title="Remover item"
-              onClick={() => deleteChecklistItem(item.id)}
+              onClick={() => handleRemove(item)}
               className="tap-inline flex h-8 w-8 shrink-0 items-center justify-center rounded-btn text-text-muted hover:bg-danger-bg hover:text-danger"
             >
               <Trash2 size={16} aria-hidden="true" />

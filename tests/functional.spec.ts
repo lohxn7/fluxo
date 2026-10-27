@@ -40,7 +40,7 @@ test('criar tarefa, checklist, anexo, excluir com desfazer', async ({ page }) =>
     mimeType: 'text/plain',
     buffer,
   })
-  await expect(page.getByText('teste.txt')).toBeVisible({ timeout: 5000 })
+  await expect(page.getByText('teste.txt', { exact: true })).toBeVisible({ timeout: 5000 })
 
   // Anexo inválido (extensão não aceita)
   await page.setInputFiles('input[type="file"]', {

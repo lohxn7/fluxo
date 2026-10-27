@@ -63,4 +63,5 @@ export interface Settings {
   theme: ThemeMode
   fontScale: number
   reduceMotion: boolean
+  tipsDismissed?: boolean
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Paperclip, ListChecks, Pencil, Trash2, ArrowRightLeft } from 'lucide-react'
+import { GripVertical, Paperclip, ListChecks, Pencil, Trash2, ArrowRightLeft, Circle, CheckCircle2 } from 'lucide-react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../../db/schema'
@@ -17,11 +17,12 @@ interface TaskCardProps {
   onEdit: () => void
   onDelete: () => void
   onMove: () => void
+  onToggleComplete: () => void
 }
 
 // Gestalt — Proximidade: metadados agrupados, espaço maior entre cartões (gap na coluna)
 // Ação situada: dois caminhos para mover — arrastar (alça) ou o menu "Mover para…"
-export function TaskCard({ task, onEdit, onDelete, onMove }: TaskCardProps) {
+export function TaskCard({ task, onEdit, onDelete, onMove, onToggleComplete }: TaskCardProps) {
   const navigate = useNavigate()
   const label = useLiveQuery(() => (task.labelId ? db.labels.get(task.labelId) : undefined), [task.labelId])
   const checklist = useLiveQuery(() => db.checklistItems.where('taskId').equals(task.id).toArray(), [task.id])
@@ -40,12 +41,13 @@ export function TaskCard({ task, onEdit, onDelete, onMove }: TaskCardProps) {
   // reforçando de relance a categoria sem depender só da tag de texto.
   const stripeColor = label ? swatchForColor(label.color).text : 'var(--border)'
   const coverImage = attachments?.find((a) => a.mimeType.startsWith('image/'))
+  const completed = !!task.completedAt
 
   return (
     <div
       ref={setNodeRef}
       style={{ ...style, borderLeftColor: stripeColor }}
-      className="group flex flex-col overflow-hidden rounded-card border border-l-4 border-border bg-surface shadow-soft transition-shadow duration-200 ease-out hover:shadow-[0_2px_4px_rgb(90_58_20_/_.08),_0_10px_24px_rgb(90_58_20_/_.14)]"
+      className={`group flex flex-col overflow-hidden rounded-card border border-l-4 border-border bg-surface shadow-soft ${completed ? 'opacity-75' : ''} transition-shadow duration-200 ease-out hover:shadow-[0_2px_4px_rgb(90_58_20_/_.08),_0_10px_24px_rgb(90_58_20_/_.14)]`}
     >
       {coverImage && <CardCover attachment={coverImage} />}
 
@@ -61,9 +63,23 @@ export function TaskCard({ task, onEdit, onDelete, onMove }: TaskCardProps) {
 
         <div className="flex min-w-0 flex-1 flex-col gap-3">
           <div className="flex items-start justify-between gap-2">
+            {/* Visibilidade do status + eficiência: concluir/reabrir direto do cartão */}
+            <button
+              onClick={onToggleComplete}
+              aria-label={completed ? `Reabrir tarefa ${task.title}` : `Concluir tarefa ${task.title}`}
+              title={completed ? 'Reabrir tarefa' : 'Concluir tarefa'}
+              aria-pressed={completed}
+              className={`tap-inline -ml-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
+                completed ? 'text-success' : 'text-text-muted hover:text-success'
+              }`}
+            >
+              {completed ? <CheckCircle2 size={20} aria-hidden="true" /> : <Circle size={20} aria-hidden="true" />}
+            </button>
             <button
               onClick={() => navigate(`/tarefa/${task.id}`)}
-              className="tap-inline line-clamp-2 flex-1 text-left text-[15px] font-bold leading-snug text-text hover:underline"
+              className={`tap-inline line-clamp-2 flex-1 text-left text-[15px] font-bold leading-snug hover:underline ${
+                completed ? 'text-text-muted line-through' : 'text-text'
+              }`}
             >
               {task.title}
             </button>
@@ -77,13 +93,16 @@ export function TaskCard({ task, onEdit, onDelete, onMove }: TaskCardProps) {
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5">
-            {label && <Tag name={label.name} color={label.color} />}
-            <PriorityBadge priority={task.priority} />
-          </div>
+          {/* Minimalismo: "Média" é o padrão e aparecia em quase todo cartão; só a alta merece destaque */}
+          {(label || task.priority === 'alta') && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {label && <Tag name={label.name} color={label.color} />}
+              {task.priority === 'alta' && <PriorityBadge priority={task.priority} />}
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-3 border-t border-border pt-3 text-xs font-medium text-text-muted">
-            <DueBadge dueDate={task.dueDate} />
+            {completed ? <span className="font-semibold text-success">Concluída</span> : <DueBadge dueDate={task.dueDate} />}
             {!!checklist?.length && (
               <span className="inline-flex items-center gap-1.5">
                 <ListChecks size={14} className={doneCount === checklist.length ? 'text-success' : 'text-text-muted'} aria-hidden="true" />

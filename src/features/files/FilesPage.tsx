@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Search, Paperclip, Download } from 'lucide-react'
+import { Search, Paperclip, Download, SearchX } from 'lucide-react'
 import { db } from '../../db/schema'
 import { AttachmentIcon } from './AttachmentIcon'
 import { EmptyState } from '../../components/EmptyState'
@@ -9,6 +9,7 @@ import { Select } from '../../components/Select'
 import { formatFileSize } from './attachmentApi'
 import { usePageTitle } from '../../hooks/usePageTitle'
 import { useEffect } from 'react'
+import { LoadingState } from '../../components/LoadingState'
 import type { Attachment } from '../../db/types'
 
 const TYPE_FILTERS = [
@@ -54,7 +55,7 @@ export function FilesPage() {
     return list
   }, [attachments, search, typeFilter, sortBy])
 
-  if (!attachments || !tasks) return null
+  if (!attachments || !tasks) return <LoadingState />
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-6 lg:px-8">
@@ -89,7 +90,24 @@ export function FilesPage() {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {filtered.length === 0 && attachments.length > 0 ? (
+        <EmptyState
+          icon={<SearchX size={28} />}
+          title="Nenhum resultado para o filtro"
+          description="Nenhum arquivo combina com a busca ou o tipo escolhido."
+          action={
+            <button
+              onClick={() => {
+                setSearch('')
+                setTypeFilter('')
+              }}
+              className="tap-inline rounded-btn px-3 py-2 text-sm font-semibold text-primary hover:bg-column"
+            >
+              Limpar filtros
+            </button>
+          }
+        />
+      ) : filtered.length === 0 ? (
         <EmptyState
           icon={<Paperclip size={28} />}
           title="Nenhum arquivo ainda"

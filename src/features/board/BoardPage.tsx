@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
   DndContext,
@@ -10,18 +10,21 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core'
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
-import { Search, Plus } from 'lucide-react'
+import { Search, Plus, Lightbulb, X } from 'lucide-react'
 import { db } from '../../db/schema'
 import type { Task } from '../../db/types'
 import { BoardColumn } from './BoardColumn'
 import { NewTaskModal } from '../task/NewTaskModal'
 import { MoveTaskModal } from './MoveTaskModal'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
-import { moveTask, deleteTask, restoreTask } from '../task/taskApi'
+import { moveTask, deleteTask, restoreTask, setTaskCompletion, updateTask } from '../task/taskApi'
 import { useToast } from '../../components/ToastProvider'
 import { usePageTitle } from '../../hooks/usePageTitle'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { useNavigate } from 'react-router-dom'
+import { LoadingState } from '../../components/LoadingState'
+import { useShortcut } from '../../hooks/useDialog'
+import { updateSettings } from '../settings/settingsApi'
 
 export function BoardPage() {
   usePageTitle('Quadro')
@@ -31,6 +34,8 @@ export function BoardPage() {
   const columns = useLiveQuery(() => db.columns.orderBy('order').toArray(), [])
   const tasks = useLiveQuery(() => db.tasks.orderBy('order').toArray(), [])
   const labels = useLiveQuery(() => db.labels.toArray(), [])
+  const settings = useLiveQuery(() => db.settings.get('app-settings'), [])
+  const searchRef = useRef<HTMLInputElement>(null)
 
   const [search, setSearch] = useState('')
   const [labelFilter, setLabelFilter] = useState('')
@@ -46,10 +51,17 @@ export function BoardPage() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
+  // Atalhos (Flexibilidade e eficiência): N cria tarefa, / vai para a busca
+  useShortcut('n', () => columns?.[0] && setNewTaskColumn(columns[0].id))
+  useShortcut('/', () => searchRef.current?.focus())
+
+  const filtering = search.trim() !== '' || labelFilter !== ''
+
   const filteredTasks = useMemo(() => {
     if (!tasks) return []
+    const query = search.trim().toLowerCase()
     return tasks.filter((t) => {
-      const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase())
+      const matchesSearch = !query || t.title.toLowerCase().includes(query) || t.description.toLowerCase().includes(query)
       const matchesLabel = !labelFilter || t.labelId === labelFilter
       return matchesSearch && matchesLabel
     })
@@ -90,7 +102,7 @@ export function BoardPage() {
     const targetTasks = tasksForColumn(columnId)
     await moveTask(task.id, columnId, targetTasks.length)
     const targetColumn = columns?.find((c) => c.id === columnId)
-    showToast(`Tarefa movida para ${targetColumn?.name} · Desfazer`, {
+    showToast(`Tarefa movida para ${targetColumn?.name}`, {
       actionLabel: 'Desfazer',
       onAction: () => moveTask(task.id, task.columnId, task.order),
     })
@@ -101,13 +113,25 @@ export function BoardPage() {
     const snapshot = taskToDelete
     await deleteTask(snapshot.id)
     setTaskToDelete(null)
-    showToast('Tarefa excluída · Desfazer', {
+    showToast('Tarefa excluída', {
       actionLabel: 'Desfazer',
       onAction: () => restoreTask(snapshot),
     })
   }
 
-  if (!columns || !tasks) return null
+  async function handleToggleComplete(task: Task) {
+    const willComplete = !task.completedAt
+    await setTaskCompletion(task.id, willComplete)
+    showToast(willComplete ? 'Tarefa concluída' : 'Tarefa reaberta', {
+      actionLabel: 'Desfazer',
+      onAction: async () => {
+        await moveTask(task.id, task.columnId, task.order)
+        await updateTask(task.id, { completedAt: task.completedAt })
+      },
+    })
+  }
+
+  if (!columns || !tasks || !settings) return <LoadingState />
 
   return (
     <div className="flex h-dvh flex-col lg:h-dvh">
@@ -117,10 +141,11 @@ export function BoardPage() {
           <div className="relative flex-1">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" aria-hidden="true" />
             <input
+              ref={searchRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar tarefa por título"
-              aria-label="Buscar tarefa por título"
+              placeholder="Buscar tarefa (atalho: /)"
+              aria-label="Buscar tarefa por título ou descrição"
               className="w-full rounded-btn border border-border bg-surface py-2.5 pl-10 pr-3.5 text-base text-text focus-visible:outline-none"
             />
           </div>
@@ -137,6 +162,17 @@ export function BoardPage() {
               </option>
             ))}
           </select>
+          {filtering && (
+            <button
+              onClick={() => {
+                setSearch('')
+                setLabelFilter('')
+              }}
+              className="tap-inline rounded-btn px-3 py-2.5 text-sm font-semibold text-primary hover:bg-column"
+            >
+              Limpar filtros
+            </button>
+          )}
         </div>
 
         <div className="flex gap-1 overflow-x-auto lg:hidden" role="tablist" aria-label="Colunas do quadro">
@@ -151,9 +187,31 @@ export function BoardPage() {
               }`}
             >
               {c.name}
+              {/* Reconhecer em vez de lembrar: quantas tarefas há em cada coluna, sem precisar abrir */}
+              <span className="ml-1.5 opacity-80">{tasksForColumn(c.id).length}</span>
             </button>
           ))}
         </div>
+        {/* Ajuda: dicas na primeira visita, dispensáveis */}
+        {!settings.tipsDismissed && (
+          <div className="flex items-start gap-3 rounded-card bg-column px-4 py-3 text-sm text-text">
+            <Lightbulb size={18} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+            <ul className="flex-1 list-disc space-y-1 pl-4">
+              <li>Arraste um cartão pela alça ⋮⋮ para trocar de coluna, ou use o menu "Mover para…".</li>
+              <li>Toque no círculo do cartão para concluir. A última coluna guarda as tarefas concluídas.</li>
+              <li>Em Ajustes você cria etiquetas e define um máximo de tarefas por coluna.</li>
+              <li className="hidden lg:list-item">Atalhos: N cria uma tarefa e / vai para a busca.</li>
+            </ul>
+            <button
+              onClick={() => updateSettings({ tipsDismissed: true })}
+              aria-label="Dispensar dicas"
+              title="Dispensar dicas"
+              className="tap-inline flex h-8 w-8 shrink-0 items-center justify-center rounded-btn text-text-muted hover:bg-surface"
+            >
+              <X size={16} aria-hidden="true" />
+            </button>
+          </div>
+        )}
       </header>
 
       <div className="sr-only" aria-live="polite" aria-atomic="true">
@@ -174,6 +232,8 @@ export function BoardPage() {
                   onEditTask={(task) => navigate(`/tarefa/${task.id}`)}
                   onDeleteTask={setTaskToDelete}
                   onMoveTask={setTaskToMove}
+                  onToggleComplete={handleToggleComplete}
+                  filtering={filtering}
                 />
               ))}
             </div>
@@ -188,6 +248,8 @@ export function BoardPage() {
                   onEditTask={(task) => navigate(`/tarefa/${task.id}`)}
                   onDeleteTask={setTaskToDelete}
                   onMoveTask={setTaskToMove}
+                  onToggleComplete={handleToggleComplete}
+                  filtering={filtering}
                 />
               )}
             </div>

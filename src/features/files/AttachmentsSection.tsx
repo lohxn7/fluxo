@@ -1,20 +1,25 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Eye, Download, Trash2, Paperclip } from 'lucide-react'
+import { Eye, Download, Trash2, Paperclip, AlertCircle, Loader2, X } from 'lucide-react'
 import { db } from '../../db/schema'
 import { addAttachment, deleteAttachment, formatFileSize, validateFile } from './attachmentApi'
 import { FileDrop } from '../../components/FileDrop'
 import { AttachmentIcon } from './AttachmentIcon'
-import { ProgressBar } from '../../components/ProgressBar'
 import { useToast } from '../../components/ToastProvider'
 import type { Attachment } from '../../db/types'
+import { useDialog } from '../../hooks/useDialog'
 
 const ACCEPT = '.pdf,.png,.jpg,.jpeg,.webp,.docx,.xlsx,.pptx,.txt'
 
 interface UploadingFile {
   id: string
   name: string
-  progress: number
+}
+
+interface FileError {
+  id: string
+  name: string
+  message: string
 }
 
 export function AttachmentsSection({ taskId }: { taskId: string }) {
@@ -22,29 +27,32 @@ export function AttachmentsSection({ taskId }: { taskId: string }) {
   const { showToast } = useToast()
   const [uploading, setUploading] = useState<UploadingFile[]>([])
   const [preview, setPreview] = useState<Attachment | null>(null)
+  const [errors, setErrors] = useState<FileError[]>([])
 
+  // Os arquivos são gravados no próprio aparelho, sem envio pela rede, então não existe um
+  // progresso real para medir: mostramos só "Salvando…" enquanto a gravação acontece.
   async function handleFiles(fileList: FileList) {
+    setErrors([])
     for (const file of Array.from(fileList)) {
       const validation = validateFile(file)
       if (!validation.ok) {
-        showToast(validation.error!)
+        // Erro ao lado da área de soltar, e fica até a próxima tentativa (não some em 6 s)
+        setErrors((prev) => [...prev, { id: crypto.randomUUID(), name: file.name, message: validation.error! }])
         continue
       }
       const uploadId = crypto.randomUUID()
-      setUploading((prev) => [...prev, { id: uploadId, name: file.name, progress: 0 }])
-
-      let progress = 0
-      const timer = window.setInterval(() => {
-        progress = Math.min(100, progress + 30)
-        setUploading((prev) => prev.map((u) => (u.id === uploadId ? { ...u, progress } : u)))
-        if (progress >= 100) {
-          window.clearInterval(timer)
-          addAttachment(taskId, file).then(() => {
-            setUploading((prev) => prev.filter((u) => u.id !== uploadId))
-            showToast(`${file.name} anexado`)
-          })
-        }
-      }, 120)
+      setUploading((prev) => [...prev, { id: uploadId, name: file.name }])
+      try {
+        await addAttachment(taskId, file)
+        showToast(`${file.name} anexado`)
+      } catch {
+        setErrors((prev) => [
+          ...prev,
+          { id: uploadId, name: file.name, message: 'Não deu para salvar. O espaço do navegador pode estar cheio.' },
+        ])
+      } finally {
+        setUploading((prev) => prev.filter((u) => u.id !== uploadId))
+      }
     }
   }
 
@@ -56,12 +64,31 @@ export function AttachmentsSection({ taskId }: { taskId: string }) {
   return (
     <div className="flex flex-col gap-3">
       <h3 className="text-base font-semibold text-text">Anexos</h3>
-      <FileDrop onFiles={handleFiles} accept={ACCEPT} />
+      <FileDrop onFiles={handleFiles} accept={ACCEPT} invalid={errors.length > 0} />
+
+      {errors.length > 0 && (
+        <div role="alert" className="flex flex-col gap-1.5 rounded-btn border border-danger bg-danger-bg p-3">
+          {errors.map((err) => (
+            <p key={err.id} className="flex items-start gap-2 text-sm text-danger">
+              <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+              <span className="flex-1">
+                <strong className="font-semibold">{err.name}:</strong> {err.message}
+              </span>
+            </p>
+          ))}
+          <button
+            onClick={() => setErrors([])}
+            className="tap-inline flex items-center gap-1 self-end text-sm font-semibold text-danger underline underline-offset-2"
+          >
+            <X size={14} aria-hidden="true" /> Entendi
+          </button>
+        </div>
+      )}
 
       {uploading.map((u) => (
-        <div key={u.id} className="rounded-btn border border-border p-3">
-          <p className="mb-1 truncate text-sm text-text">{u.name}</p>
-          <ProgressBar value={u.progress} max={100} label="Enviando" />
+        <div key={u.id} role="status" className="flex items-center gap-2 rounded-btn border border-border p-3 text-sm text-text">
+          <Loader2 size={16} className="shrink-0 animate-spin text-primary" aria-hidden="true" />
+          <span className="truncate">Salvando {u.name}…</span>
         </div>
       ))}
 
@@ -133,6 +160,9 @@ function DownloadLink({ attachment }: { attachment: Attachment }) {
 
 function AttachmentPreview({ attachment, onClose }: { attachment: Attachment; onClose: () => void }) {
   const [url, setUrl] = useState<string | null>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  // Mesmo comportamento dos outros modais: Esc fecha, foco preso e devolvido ao sair
+  useDialog(dialogRef, onClose)
 
   useEffect(() => {
     const objectUrl = URL.createObjectURL(attachment.blob)
@@ -145,6 +175,7 @@ function AttachmentPreview({ attachment, onClose }: { attachment: Attachment; on
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-label={`Pré-visualização de ${attachment.name}`}
@@ -153,6 +184,7 @@ function AttachmentPreview({ attachment, onClose }: { attachment: Attachment; on
     >
       <button
         onClick={onClose}
+        data-autofocus
         className="tap-inline mb-2 self-end rounded-btn bg-surface px-4 py-2 text-sm font-semibold text-text"
       >
         Fechar

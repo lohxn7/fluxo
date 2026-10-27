@@ -1,7 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { ShieldCheck } from 'lucide-react'
 import { useAuth } from './AuthContext'
+import { LogoMark, Wordmark } from '../../components/Logo'
 import { Input } from '../../components/Input'
+import { PasswordInput } from '../../components/PasswordInput'
 import { Button } from '../../components/Button'
 import { usePageTitle } from '../../hooks/usePageTitle'
 
@@ -38,8 +41,11 @@ export function SignupPage() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-bg px-4 py-8">
       <div className="w-full max-w-sm">
+        {/* Consistência: mesmo topo (logo + marca) do login */}
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <h1 className="text-2xl font-bold text-text">Criar conta no Fluxo</h1>
+          <LogoMark size={48} />
+          <Wordmark className="text-3xl text-text" />
+          <h1 className="text-xl font-semibold text-text">Criar conta</h1>
           <p className="text-base text-text-muted">Leva menos de um minuto.</p>
         </div>
 
@@ -53,16 +59,27 @@ export function SignupPage() {
             onChange={(e) => setEmail(e.target.value)}
             error={errors.email}
           />
-          <Input
+          <PasswordInput
             label="Senha"
-            type="password"
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             error={errors.password}
             hint="Pelo menos 6 caracteres."
           />
-          {errors.general && <p className="text-sm font-medium text-danger">{errors.general}</p>}
+          {/* Ajuda: avisar antes, e não só em Ajustes, que limpar o navegador apaga tudo */}
+          <p className="flex items-start gap-2 rounded-btn bg-column px-3 py-2.5 text-sm text-text-muted">
+            <ShieldCheck size={16} className="mt-0.5 shrink-0 text-success" aria-hidden="true" />
+            <span>
+              Seus dados ficam só neste dispositivo. Se você limpar os dados do navegador, eles somem. Dá para fazer uma cópia em
+              Ajustes → Dados.
+            </span>
+          </p>
+          {errors.general && (
+            <p role="alert" className="text-sm font-medium text-danger">
+              {errors.general}
+            </p>
+          )}
           <Button type="submit" variant="primary" fullWidth disabled={loading}>
             {loading ? 'Criando conta…' : 'Criar conta'}
           </Button>

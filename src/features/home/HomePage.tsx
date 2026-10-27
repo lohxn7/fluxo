@@ -12,12 +12,16 @@ import { greetingForHour, formatFullDate, toIsoDate, daysBetween } from '../../l
 import { usePageTitle } from '../../hooks/usePageTitle'
 import { useAuth } from '../auth/AuthContext'
 import { NewTaskModal } from '../task/NewTaskModal'
+import { LoadingState } from '../../components/LoadingState'
+import { Button } from '../../components/Button'
+import { useShortcut } from '../../hooks/useDialog'
 
 export function HomePage() {
   usePageTitle('Início')
   const navigate = useNavigate()
   const { user } = useAuth()
   const [showNewTask, setShowNewTask] = useState(false)
+  useShortcut('n', () => setShowNewTask(true))
 
   const tasks = useLiveQuery(() => db.tasks.toArray(), [])
   const columns = useLiveQuery(() => db.columns.orderBy('order').toArray(), [])
@@ -30,7 +34,8 @@ export function HomePage() {
   const greeting = greetingForHour(now.getHours())
   // "Nome exibido" (Ajustes → Conta) é a fonte certa pro saudação — é o campo
   // que a pessoa de fato edita; user.name é só o nome com que ela se cadastrou.
-  const firstName = (settings?.displayName || user?.name || 'Abraão').split(' ')[0]
+  // Sem nome nenhum, a saudação fica só "Bom dia" (nada de nome fixo no código).
+  const firstName = (settings?.displayName || user?.name || '').split(' ')[0]
 
   const stats = useMemo(() => {
     if (!tasks) return { dueToday: 0, overdue: 0, completedWeek: 0 }
@@ -51,7 +56,9 @@ export function HomePage() {
     return { dueToday, overdue, completedWeek }
   }, [tasks, today])
 
-  const weekTotal = useMemo(() => {
+  // Progresso geral (todas as tarefas, desde o início) — separado do card "na semana"
+  // e rotulado como tal, para não parecer que mede a mesma coisa.
+  const overall = useMemo(() => {
     if (!tasks) return { done: 0, total: 0 }
     const done = tasks.filter((t) => t.completedAt).length
     return { done, total: tasks.length }
@@ -65,13 +72,14 @@ export function HomePage() {
       .slice(0, 5)
   }, [tasks])
 
-  if (!tasks || !columns) return null
+  if (!tasks || !columns) return <LoadingState />
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6 lg:px-8">
       <header>
         <h1 className="font-display text-3xl font-semibold text-text">
-          {greeting.text}, {firstName} {greeting.emoji}
+          {greeting.text}
+          {firstName && `, ${firstName}`} {greeting.emoji}
         </h1>
         <p className="text-base text-text-muted">{formatFullDate(now)}</p>
       </header>
@@ -106,11 +114,25 @@ export function HomePage() {
         </Card>
       </div>
 
+      {tasks.length === 0 ? (
+        // Um único estado vazio quando não há tarefa nenhuma (antes eram dois ao mesmo tempo)
+        <EmptyState
+          icon={<Plus size={28} />}
+          title="Seu quadro está livre por enquanto"
+          description="Que tal criar a primeira tarefa?"
+          action={
+            <Button variant="cta" icon={<Plus size={16} aria-hidden="true" />} onClick={() => setShowNewTask(true)}>
+              Criar tarefa
+            </Button>
+          }
+        />
+      ) : (
+        <>
       <Card className="p-4">
         <ProgressBar
-          value={weekTotal.done}
-          max={weekTotal.total}
-          label={`${weekTotal.done} de ${weekTotal.total} tarefas concluídas`}
+          value={overall.done}
+          max={overall.total}
+          label={`Progresso geral: ${overall.done} de ${overall.total} tarefas concluídas, desde o início`}
           colorClass="bg-success"
         />
       </Card>
@@ -121,7 +143,7 @@ export function HomePage() {
           <EmptyState
             icon={<CheckCircle2 size={28} />}
             title="Tudo em dia por aqui!"
-            description="Aproveita pra descansar um pouco."
+            description="Nenhuma tarefa aberta tem prazo pela frente."
           />
         ) : (
           <ul className="flex flex-col gap-2">
@@ -142,13 +164,7 @@ export function HomePage() {
           </ul>
         )}
       </section>
-
-      {tasks.length === 0 && (
-        <EmptyState
-          icon={<Plus size={28} />}
-          title="Seu quadro está livre por enquanto"
-          description="Que tal criar a primeira tarefa?"
-        />
+        </>
       )}
 
       <button
