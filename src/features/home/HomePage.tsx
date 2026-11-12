@@ -27,9 +27,7 @@ export function HomePage() {
   const columns = useLiveQuery(() => db.columns.orderBy('order').toArray(), [])
   const settings = useLiveQuery(() => db.settings.get('app-settings'), [])
 
-  // TODO: por enquanto fixo em 14 de setembro (pedido temporário); trocar de volta
-  // para `new Date()` quando não precisar mais de uma data fixa pra testar/mostrar.
-  const now = new Date(2026, 8, 14)
+  const now = new Date()
   const today = toIsoDate(now)
   const greeting = greetingForHour(now.getHours())
   // "Nome exibido" (Ajustes → Conta) é a fonte certa pro saudação — é o campo
