@@ -31,3 +31,6 @@ playwright/.cache
 *.sw?
 
 .vercel
+
+# Relatórios da disciplina (ficam só local)
+docs/*.docx
